@@ -1,0 +1,32 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: data-exchange
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: myapp
+  template:
+    metadata:
+      labels:
+        app: myapp
+    spec:
+      containers:
+      - name: write
+        image: cr.yandex/mirror/busybox:latest
+        command: ["/bin/sh", "-c"] 
+        args: ["until false; do echo $(date) >> /data/date.log; sleep 5; done"]
+        volumeMounts:
+        - name: data-pvc
+          mountPath: /data
+      - name: read
+        image: wbitt/network-multitool
+        command: ["/bin/sh", "-c"]
+        args: ["tail -f /data/date.log"]
+        volumeMounts:
+        - name: data-pvc
+          mountPath: /data
+      volumes:
+      - name: data-pvc
+        emptyDir: {} 

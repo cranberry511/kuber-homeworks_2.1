@@ -1,0 +1,63 @@
+---
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: pv0001
+spec:
+  capacity:
+    storage: 1Gi
+  volumeMode: Filesystem
+  accessModes:
+    - ReadWriteOnce
+  persistentVolumeReclaimPolicy: Retain
+  storageClassName: local
+  hostPath:
+    path: /data/pv0001/
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: pvc0001 
+spec:
+  storageClassName: local
+  volumeName: pv0001
+  volumeMode: Filesystem
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 1Gi
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: data-exchange-pvc
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: myapp
+  template:
+    metadata:
+      labels:
+        app: myapp
+    spec:
+      containers:
+      - name: write
+        image: cr.yandex/mirror/busybox:latest
+        command: ["/bin/sh", "-c"] 
+        args: ["until false; do echo $(date) >> /data/date.log; sleep 5; done"]
+        volumeMounts:
+        - name: data-pvc
+          mountPath: /data
+      - name: read
+        image: wbitt/network-multitool
+        command: ["/bin/sh", "-c"]
+        args: ["tail -f /data/date.log"]
+        volumeMounts:
+        - name: data-pvc
+          mountPath: /data
+      volumes:
+      - name: data-pvc
+        persistentVolumeClaim:
+          claimName: pvc0001
